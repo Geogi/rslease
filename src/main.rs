@@ -142,7 +142,11 @@ fn main() {
     }
 
     Command::new("git")
-        .args(&["commit", "-am", &format!("Release version {}.", new_version)])
+        .args(&[
+            "commit",
+            "-am",
+            &format!("Release version {}.", new_version),
+        ])
         .output_success()?;
 
     Command::new("git")
@@ -158,18 +162,14 @@ fn main() {
         manifest.package.version = post_version.to_string();
         cargo_toml2::to_path("Cargo.toml", manifest)?;
 
-        Command::new("cargo")
-            .arg("update")
-            .output_success()?;
+        Command::new("cargo").arg("update").output_success()?;
 
         Command::new("git")
             .args(&["commit", "-am", "Post-release."])
             .output_success()?;
     }
 
-    Command::new("git")
-        .args(&["push"])
-        .output_success()?;
+    Command::new("git").args(&["push"]).output_success()?;
 
     Command::new("git")
         .args(&["push", "origin", &format!("v{}", new_version)])
