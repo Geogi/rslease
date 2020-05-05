@@ -39,6 +39,10 @@ fn main() {
                 .takes_value(true)
                 .help("Use this version as the base (X or X.Y). Default: latest.")
                 .conflicts_with("major"),
+            Arg::with_name("install")
+                .short("i")
+                .long("install")
+                .help("Install the new version locally."),
         ])
         .after_help(
             "\
@@ -51,6 +55,7 @@ fn main() {
         + Edit Cargo.toml, replacing `version`.\n\
         + Run the cargo commands: `update`, `build`, `clean`, `clippy`, `fmt`.\n\
         + Commit and create a new semver tag for the version.\n\
+        + If --install, run `cargo install`.\n\
         + Unless --patch was specified, perform the 3 following steps:\n\
         ++ Edit Cargo.toml, replacing `version` with the next minor with '-dev' prerelease.\n\
         ++ Run `cargo update` again.\n\
@@ -90,6 +95,7 @@ fn main() {
             .output_success()
             .context(format!("Failed to checkout branch {}", branch))?;
     }
+    let install = matches.is_present("install");
 
     let out = Command::new("git")
         .args(&["status", "--porcelain=v2"])
@@ -104,8 +110,12 @@ fn main() {
         .output_success()?;
     let stdout = String::from_utf8(out.stdout)?.trim().to_owned();
     let mut semver_tags = vec![];
-    for mat in Regex::new(r"^v\d+.\d+.\d+$")?.find_iter(&stdout) {
-        let sv = Version::parse(&mat.as_str()[1..])?;
+    let semver_tag_re = Regex::new(r"^v\d+.\d+.\d+$")?;
+    for line in stdout.lines() {
+        if !semver_tag_re.is_match(line) {
+            continue;
+        }
+        let sv = Version::parse(&line[1..])?;
         if constraint.matches(&sv) {
             semver_tags.push(sv);
         }
@@ -152,6 +162,10 @@ fn main() {
     Command::new("git")
         .args(&["tag", &format!("v{}", new_version)])
         .output_success()?;
+
+    if install {
+        Command::new("cargo").args(&["install", "--path", "."]).output_success()?;
+    }
 
     if release != Patch {
         let mut post_version = new_version.clone();
