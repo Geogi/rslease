@@ -164,7 +164,9 @@ fn main() {
         .output_success()?;
 
     if install {
-        Command::new("cargo").args(&["install", "--path", "."]).output_success()?;
+        Command::new("cargo")
+            .args(&["install", "--path", "."])
+            .output_success()?;
     }
 
     if release != Patch {
