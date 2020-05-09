@@ -1,4 +1,4 @@
-rslease 1.1.0
+rslease 2.0.0
 Opinionated automated release actions for Rust projects.
 
 USAGE:
@@ -23,7 +23,7 @@ This program performs the following actions:
 + Retrieve the latest semver tag from git, possibly coerced by --for.
 + Increase the semver. Defaults to minor, use --patch or --major as needed.
 + Edit Cargo.toml, replacing `version`.
-+ Run the cargo commands: `update`, `build`, `clean`, `clippy`, `fmt`.
++ Run the cargo commands: `update`, `clippy -D warnings`, `fmt`.
 + Commit and create a new semver tag for the version.
 + If --install, run `cargo install`.
 + Unless --patch was specified, perform the 3 following steps:
@@ -31,3 +31,7 @@ This program performs the following actions:
 ++ Run `cargo update` again.
 ++ Commit.
 + Push the new HEAD, then push the new tag.
+
+WARNING: Cargo.toml is naively edited through regexps; mostly, the first occurrence of
+`^version = ..$` must belong to [package]. See the v1 for safe parsing, which sadly came
+with too many caveats.

@@ -1,12 +1,13 @@
 use crate::ReleaseType::{Major, Minor, Patch};
 use anyhow::{anyhow, bail, Context as _, Error, Result as ARes};
-use cargo_toml2::CargoToml;
 use clap::{crate_name, crate_version, App, Arg};
 use fehler::throws;
-use regex::Regex;
+use regex::{Regex, Captures};
 use semver::{Identifier, Version, VersionReq};
 use std::env::set_current_dir;
 use std::process::{Command, Output};
+use std::fs::File;
+use std::io::{Read, Write};
 
 #[throws]
 fn main() {
@@ -53,7 +54,7 @@ fn main() {
         + Retrieve the latest semver tag from git, possibly coerced by --for.\n\
         + Increase the semver. Defaults to minor, use --patch or --major as needed.\n\
         + Edit Cargo.toml, replacing `version`.\n\
-        + Run the cargo commands: `update`, `build`, `clean`, `clippy`, `fmt`.\n\
+        + Run the cargo commands: `update`, `clippy -D warnings`, `fmt`.\n\
         + Commit and create a new semver tag for the version.\n\
         + If --install, run `cargo install`.\n\
         + Unless --patch was specified, perform the 3 following steps:\n\
@@ -61,6 +62,10 @@ fn main() {
         ++ Run `cargo update` again.\n\
         ++ Commit.\n\
         + Push the new HEAD, then push the new tag.\n\
+        \n\
+        WARNING: Cargo.toml is naively edited through regexps; mostly, the first occurrence of\n\
+        `^version = ..$` must belong to [package]. See the v1 for safe parsing, which sadly came\n\
+        with too many caveats.\n\
         ",
         )
         .get_matches();
@@ -130,26 +135,28 @@ fn main() {
             )
         }
     };
-    let new_version = {
-        let mut new_version = latest.clone();
+
+        let mut new_version = latest;
         match release {
             Major => new_version.increment_major(),
             Minor => new_version.increment_minor(),
             Patch => new_version.increment_patch(),
         };
-        new_version
-    };
+    let new_version = new_version;
 
-    let mut manifest: CargoToml = cargo_toml2::from_path("Cargo.toml")?;
-    manifest.package.version = new_version.to_string();
-    cargo_toml2::to_path("Cargo.toml", manifest)?;
+    update_cargo_toml_version(&new_version)?;
 
-    for operation in &["update", "build", "clean", "clippy", "fmt"] {
-        Command::new("cargo")
-            .arg(operation)
-            .output_success()
-            .context(format!("Failed `cargo {}`.", operation))?;
-    }
+    Command::new("cargo")
+        .arg("update")
+        .output_success()?;
+
+    Command::new("cargo")
+        .args(&["clippy", "--", "-D", "warnings"])
+        .output_success()?;
+
+    Command::new("cargo")
+        .arg("fmt")
+        .output_success()?;
 
     Command::new("git")
         .args(&[
@@ -173,10 +180,9 @@ fn main() {
         let mut post_version = new_version.clone();
         post_version.increment_minor();
         post_version.pre = vec![Identifier::AlphaNumeric("dev".to_owned())];
+        let post_version = post_version;
 
-        let mut manifest: CargoToml = cargo_toml2::from_path("Cargo.toml")?;
-        manifest.package.version = post_version.to_string();
-        cargo_toml2::to_path("Cargo.toml", manifest)?;
+        update_cargo_toml_version(&post_version)?;
 
         Command::new("cargo").arg("update").output_success()?;
 
@@ -212,4 +218,12 @@ enum ReleaseType {
     Major,
     Minor,
     Patch,
+}
+
+#[throws]
+fn update_cargo_toml_version(version: &Version) {
+    let mut manifest = String::new();
+    File::open("Cargo.toml")?.read_to_string(&mut manifest)?;
+    let manifest = Regex::new(r#"^(version\w*=\w*")[^"]*("\w*)$"#)?.replace(&manifest, |c: &Captures| format!("{}{}{}", &c[1], version, &c[2]));
+    File::create("Cargo.toml")?.write_all(manifest.as_bytes())?;
 }
