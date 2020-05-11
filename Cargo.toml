@@ -1,6 +1,6 @@
 [package]
 name = "rslease"
-version = "1.2.0-dev"
+version = "2.0.0"
 authors = ["Paul Blouët <paul@paulblouet.fr>"]
 edition = "2018"
 

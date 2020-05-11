@@ -2,12 +2,12 @@ use crate::ReleaseType::{Major, Minor, Patch};
 use anyhow::{anyhow, bail, Context as _, Error, Result as ARes};
 use clap::{crate_name, crate_version, App, Arg};
 use fehler::throws;
-use regex::{Regex, Captures};
+use regex::{Captures, Regex};
 use semver::{Identifier, Version, VersionReq};
 use std::env::set_current_dir;
-use std::process::{Command, Output};
 use std::fs::File;
 use std::io::{Read, Write};
+use std::process::{Command, Output};
 
 #[throws]
 fn main() {
@@ -141,27 +141,23 @@ fn main() {
         }
     };
 
-        let mut new_version = latest;
-        match release {
-            Major => new_version.increment_major(),
-            Minor => new_version.increment_minor(),
-            Patch => new_version.increment_patch(),
-        };
+    let mut new_version = latest;
+    match release {
+        Major => new_version.increment_major(),
+        Minor => new_version.increment_minor(),
+        Patch => new_version.increment_patch(),
+    };
     let new_version = new_version;
 
     update_cargo_toml_version(&new_version)?;
 
-    Command::new("cargo")
-        .arg("update")
-        .output_success()?;
+    Command::new("cargo").arg("update").output_success()?;
 
     Command::new("cargo")
         .args(&["clippy", "--", "-D", "warnings"])
         .output_success()?;
 
-    Command::new("cargo")
-        .arg("fmt")
-        .output_success()?;
+    Command::new("cargo").arg("fmt").output_success()?;
 
     Command::new("git")
         .args(&[
@@ -235,6 +231,8 @@ fn update_cargo_toml_version(version: &Version) {
     if !re.is_match(&manifest) {
         bail!("Could extract version from Cargo.toml, see --help for more info.");
     }
-    let manifest = re.replace(&manifest, |c: &Captures| format!("{}{}{}", &c[1], version, &c[2]));
+    let manifest = re.replace(&manifest, |c: &Captures| {
+        format!("{}{}{}", &c[1], version, &c[2])
+    });
     File::create("Cargo.toml")?.write_all(manifest.as_bytes())?;
 }
