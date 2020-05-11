@@ -224,7 +224,7 @@ enum ReleaseType {
 fn update_cargo_toml_version(version: &Version) {
     let mut manifest = String::new();
     File::open("Cargo.toml")?.read_to_string(&mut manifest)?;
-    let re = Regex::new(r#"^(version\w*=\w*")[^"]*("\w*)$"#)?;
+    let re = Regex::new(r#"^(version\s*=\s*")[^"]*("\s*)$"#)?;
     if !re.is_match(&manifest) {
         bail!("Could extract version from Cargo.toml, see --help for more info.");
     }
