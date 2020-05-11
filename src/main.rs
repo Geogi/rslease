@@ -125,14 +125,11 @@ fn main() {
         if !semver_tag_re.is_match(line) {
             continue;
         }
-        let sv = Version::parse(&line[1..])?;
-        if constraint.matches(&sv) {
-            semver_tags.push(sv);
-        }
+        semver_tags.push(Version::parse(&line[1..])?);
     }
     let semver_tags = semver_tags;
     let latest = {
-        if let Some(v) = semver_tags.iter().max() {
+        if let Some(v) = semver_tags.iter().filter(|v| constraint.matches(v)).max() {
             v.clone()
         } else {
             bail!(
