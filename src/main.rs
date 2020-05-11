@@ -112,15 +112,17 @@ fn main() {
         .empty_stdout()
         .context("`git status` not empty; repo not clean")?;
 
-    Command::new("git")
-        .arg("fetch")
-        .output_success()
-        .context("Failed to fetch upstream")?;
+    if !no_push {
+        Command::new("git")
+            .arg("fetch")
+            .output_success()
+            .context("Failed to fetch upstream")?;
 
-    Command::new("git")
-        .args(&["rev-list", "HEAD..HEAD@{upstream}"])
-        .empty_stdout()
-        .context("`git rev-list` not empty; repo behind upstream")?;
+        Command::new("git")
+            .args(&["rev-list", "HEAD..HEAD@{upstream}"])
+            .empty_stdout()
+            .context("`git rev-list` not empty; repo behind upstream")?;
+    }
 
     let out = Command::new("git")
         .args(&["tag", "--list"])
