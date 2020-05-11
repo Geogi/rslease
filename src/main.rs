@@ -63,9 +63,9 @@ fn main() {
         ++ Commit.\n\
         + Push the new HEAD, then push the new tag.\n\
         \n\
-        WARNING: Cargo.toml is naively edited through regexps; mostly, the first occurrence of\n\
-        `^version = ..$` must belong to [package]. See the v1 for safe parsing, which sadly came\n\
-        with too many caveats.\n\
+        WARNING: Cargo.toml is naively edited using regexps. Most importantly, the first\n\
+        occurrence of `^version = ..$` must belong to [package]. See the v1 for safe parsing,\n\
+        which sadly came with too many caveats.\n\
         ",
         )
         .get_matches();
@@ -224,6 +224,10 @@ enum ReleaseType {
 fn update_cargo_toml_version(version: &Version) {
     let mut manifest = String::new();
     File::open("Cargo.toml")?.read_to_string(&mut manifest)?;
-    let manifest = Regex::new(r#"^(version\w*=\w*")[^"]*("\w*)$"#)?.replace(&manifest, |c: &Captures| format!("{}{}{}", &c[1], version, &c[2]));
+    let re = Regex::new(r#"^(version\w*=\w*")[^"]*("\w*)$"#)?;
+    if !re.is_match(&manifest) {
+        bail!("Could extract version from Cargo.toml, see --help for more info.");
+    }
+    let manifest = re.replace(&manifest, |c: &Captures| format!("{}{}{}", &c[1], version, &c[2]));
     File::create("Cargo.toml")?.write_all(manifest.as_bytes())?;
 }
