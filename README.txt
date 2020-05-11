@@ -1,4 +1,4 @@
-rslease 2.0.0
+rslease 2.0.1
 Opinionated automated release actions for Rust projects.
 
 USAGE:
