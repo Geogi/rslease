@@ -27,7 +27,7 @@ This program performs the following actions:
 + Run the cargo commands: `update`, `clippy -D warnings`, `fmt`.
 + Commit and create a new semver tag for the version.
 + If --install, run `cargo install`.
-+ Unless --patch was specified, perform the 3 following steps:
++ If a semver tag for the next minor does not already exist:
 ++ Edit Cargo.toml, replacing `version` with the next minor with '-dev' prerelease.
 ++ Run `cargo update` again.
 ++ Commit.

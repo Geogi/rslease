@@ -61,7 +61,7 @@ fn main() {
         + Run the cargo commands: `update`, `clippy -D warnings`, `fmt`.\n\
         + Commit and create a new semver tag for the version.\n\
         + If --install, run `cargo install`.\n\
-        + Unless --patch was specified, perform the 3 following steps:\n\
+        + If a semver tag for the next minor does not already exist:\n\
         ++ Edit Cargo.toml, replacing `version` with the next minor with '-dev' prerelease.\n\
         ++ Run `cargo update` again.\n\
         ++ Commit.\n\
@@ -130,9 +130,10 @@ fn main() {
             semver_tags.push(sv);
         }
     }
+    let semver_tags = semver_tags;
     let latest = {
-        if let Some(v) = semver_tags.into_iter().max() {
-            v
+        if let Some(v) = semver_tags.iter().max() {
+            v.clone()
         } else {
             bail!(
                 "No matching semver tag found for constraint {}.",
@@ -148,6 +149,16 @@ fn main() {
         Patch => new_version.increment_patch(),
     };
     let new_version = new_version;
+
+    if semver_tags.contains(&new_version) {
+        bail!("Attempting to release a version that already exists: {}", new_version);
+    }
+
+    let next_exists = {
+        let mut next = new_version.clone();
+        next.increment_minor();
+        semver_tags.contains(&next)
+    };
 
     update_cargo_toml_version(&new_version)?;
 
@@ -177,7 +188,7 @@ fn main() {
             .output_success()?;
     }
 
-    if release != Patch {
+    if !next_exists {
         let mut post_version = new_version.clone();
         post_version.increment_minor();
         post_version.pre = vec![Identifier::AlphaNumeric("dev".to_owned())];
