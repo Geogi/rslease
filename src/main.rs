@@ -157,7 +157,10 @@ fn main() {
     let new_version = new_version;
 
     if semver_tags.contains(&new_version) {
-        bail!("Attempting to release a version that already exists: {}", new_version);
+        bail!(
+            "Attempting to release a version that already exists: {}",
+            new_version
+        );
     }
 
     let next_exists = {
