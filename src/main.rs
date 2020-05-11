@@ -236,7 +236,7 @@ impl CommandPropagate for Command {
     fn empty_stdout(&mut self) -> AVoid {
         let output = self.output_success()?;
         if !output.stdout.is_empty() {
-            let stdout = String::from_utf8(out.stdout)?.trim().to_owned();
+            let stdout = String::from_utf8(output.stdout)?.trim().to_owned();
             bail!(anyhow!(stdout).context("Command stdout should be empty"));
         }
         Ok(())
