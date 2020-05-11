@@ -92,7 +92,7 @@ fn main() {
             if !matches.is_present("patch") && Regex::new(r"\d+\.\d+")?.is_match(base) {
                 bail!("--for: when specifying a minor version (x.Y), `patch` is mandatory.")
             }
-            VersionReq::parse(base)?
+            VersionReq::parse(&format!("~{}.0", base))?
         } else {
             VersionReq::any()
         }
