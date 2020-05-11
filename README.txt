@@ -20,7 +20,7 @@ OPTIONS:
 This program performs the following actions:
 + In --repo, by default the current directory.
 + If --branch is specified, checkout the commit.
-+ Check if repo is fully clean (`git status` returns nothing).
++ Check if repo is clean and up to date: `git status`, `git rev-list`.
 + Retrieve the latest semver tag from git, possibly coerced by --for.
 + Increase the semver. Defaults to minor, use --patch or --major as needed.
 + Edit Cargo.toml, replacing `version`.

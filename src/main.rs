@@ -54,7 +54,7 @@ fn main() {
         This program performs the following actions:\n\
         + In --repo, by default the current directory.\n\
         + If --branch is specified, checkout the commit.\n\
-        + Check if repo is fully clean (`git status` returns nothing).\n\
+        + Check if repo is clean and up to date: `git status`, `git rev-list`.\n\
         + Retrieve the latest semver tag from git, possibly coerced by --for.\n\
         + Increase the semver. Defaults to minor, use --patch or --major as needed.\n\
         + Edit Cargo.toml, replacing `version`.\n\
@@ -107,13 +107,20 @@ fn main() {
     }
     let install = matches.is_present("install");
 
-    let out = Command::new("git")
+    Command::new("git")
         .args(&["status", "--porcelain=v2"])
-        .output_success()?;
-    if !out.stdout.is_empty() {
-        let stdout = String::from_utf8(out.stdout)?.trim().to_owned();
-        bail!(anyhow!(stdout).context("`git status` not empty; repo not clean"));
-    }
+        .empty_stdout()
+        .context("`git status` not empty; repo not clean")?;
+
+    Command::new("git")
+        .arg("fetch")
+        .output_success()
+        .context("Failed to fetch upstream")?;
+
+    Command::new("git")
+        .args(&["rev-list", "HEAD..HEAD@{upstream}"])
+        .empty_stdout()
+        .context("`git rev-list` not empty; repo behind upstream")?;
 
     let out = Command::new("git")
         .args(&["tag", "--list"])
@@ -201,7 +208,7 @@ fn main() {
     }
 
     if !no_push {
-        Command::new("git").args(&["push"]).output_success()?;
+        Command::new("git").arg("push").output_success()?;
 
         Command::new("git")
             .args(&["push", "origin", &format!("v{}", new_version)])
@@ -211,6 +218,7 @@ fn main() {
 
 trait CommandPropagate {
     fn output_success(&mut self) -> ARes<Output>;
+    fn empty_stdout(&mut self) -> AVoid;
 }
 
 impl CommandPropagate for Command {
@@ -221,6 +229,15 @@ impl CommandPropagate for Command {
             bail!(stderr);
         }
         Ok(output)
+    }
+
+    fn empty_stdout(&mut self) -> AVoid {
+        let output = self.output_success()?;
+        if !output.stdout.is_empty() {
+            let stdout = String::from_utf8(out.stdout)?.trim().to_owned();
+            bail!(anyhow!(stdout).context("Command stdout should be empty"));
+        }
+        Ok(())
     }
 }
 
