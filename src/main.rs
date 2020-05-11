@@ -44,6 +44,10 @@ fn main() {
                 .short("i")
                 .long("install")
                 .help("Install the new version locally."),
+            Arg::with_name("no-push")
+                .short("n")
+                .long("no-push")
+                .help("Do not perform a final push to the remote."),
         ])
         .after_help(
             "\
@@ -61,7 +65,7 @@ fn main() {
         ++ Edit Cargo.toml, replacing `version` with the next minor with '-dev' prerelease.\n\
         ++ Run `cargo update` again.\n\
         ++ Commit.\n\
-        + Push the new HEAD, then push the new tag.\n\
+        + Unless --no-push, push the new HEAD, then push the new tag.\n\
         \n\
         WARNING: Cargo.toml is naively edited using regexps. Most importantly, the first\n\
         occurrence of `^version = ..$` must belong to [package]. See the v1 for safe parsing,\n\
@@ -93,6 +97,7 @@ fn main() {
             VersionReq::any()
         }
     };
+    let no_push = matches.is_present("no-push");
 
     if let Some(branch) = branch {
         Command::new("git")
@@ -191,11 +196,13 @@ fn main() {
             .output_success()?;
     }
 
-    Command::new("git").args(&["push"]).output_success()?;
+    if !no_push {
+        Command::new("git").args(&["push"]).output_success()?;
 
-    Command::new("git")
-        .args(&["push", "origin", &format!("v{}", new_version)])
-        .output_success()?;
+        Command::new("git")
+            .args(&["push", "origin", &format!("v{}", new_version)])
+            .output_success()?;
+    }
 }
 
 trait CommandPropagate {

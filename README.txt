@@ -8,6 +8,7 @@ FLAGS:
     -h, --help       Prints help information
     -i, --install    Install the new version locally.
     -M, --major      Release is a new major version (X.y.z). Default: new minor version.
+    -n, --no-push    Do not perform a final push to the remote.
     -p, --patch      Release is a patch (x.y.Z). Default: new minor version.
     -V, --version    Prints version information
 
@@ -30,8 +31,8 @@ This program performs the following actions:
 ++ Edit Cargo.toml, replacing `version` with the next minor with '-dev' prerelease.
 ++ Run `cargo update` again.
 ++ Commit.
-+ Push the new HEAD, then push the new tag.
++ Unless --no-push, push the new HEAD, then push the new tag.
 
-WARNING: Cargo.toml is naively edited through regexps; mostly, the first occurrence of
-`^version = ..$` must belong to [package]. See the v1 for safe parsing, which sadly came
-with too many caveats.
+WARNING: Cargo.toml is naively edited using regexps. Most importantly, the first
+occurrence of `^version = ..$` must belong to [package]. See the v1 for safe parsing,
+which sadly came with too many caveats.
