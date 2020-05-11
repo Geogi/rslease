@@ -54,14 +54,14 @@ fn main() {
         This program performs the following actions:\n\
         + In --repo, by default the current directory.\n\
         + If --branch is specified, checkout the commit.\n\
-        + Check if repo is fully clean (`git status` returns nothing).\n\
+        + Check if repo is clean and up to date: `git status`, `git rev-list`.\n\
         + Retrieve the latest semver tag from git, possibly coerced by --for.\n\
         + Increase the semver. Defaults to minor, use --patch or --major as needed.\n\
         + Edit Cargo.toml, replacing `version`.\n\
         + Run the cargo commands: `update`, `clippy -D warnings`, `fmt`.\n\
         + Commit and create a new semver tag for the version.\n\
         + If --install, run `cargo install`.\n\
-        + Unless --patch was specified, perform the 3 following steps:\n\
+        + If a semver tag for the next minor does not already exist:\n\
         ++ Edit Cargo.toml, replacing `version` with the next minor with '-dev' prerelease.\n\
         ++ Run `cargo update` again.\n\
         ++ Commit.\n\
@@ -92,7 +92,7 @@ fn main() {
             if !matches.is_present("patch") && Regex::new(r"\d+\.\d+")?.is_match(base) {
                 bail!("--for: when specifying a minor version (x.Y), `patch` is mandatory.")
             }
-            VersionReq::parse(base)?
+            VersionReq::parse(&format!("~{}.0", base))?
         } else {
             VersionReq::any()
         }
@@ -107,12 +107,21 @@ fn main() {
     }
     let install = matches.is_present("install");
 
-    let out = Command::new("git")
+    Command::new("git")
         .args(&["status", "--porcelain=v2"])
-        .output_success()?;
-    if !out.stdout.is_empty() {
-        let stdout = String::from_utf8(out.stdout)?.trim().to_owned();
-        bail!(anyhow!(stdout).context("`git status` not empty; repo not clean"));
+        .empty_stdout()
+        .context("`git status` not empty; repo not clean")?;
+
+    if !no_push {
+        Command::new("git")
+            .arg("fetch")
+            .output_success()
+            .context("Failed to fetch upstream")?;
+
+        Command::new("git")
+            .args(&["rev-list", "HEAD..HEAD@{upstream}"])
+            .empty_stdout()
+            .context("`git rev-list` not empty; repo behind upstream")?;
     }
 
     let out = Command::new("git")
@@ -125,14 +134,12 @@ fn main() {
         if !semver_tag_re.is_match(line) {
             continue;
         }
-        let sv = Version::parse(&line[1..])?;
-        if constraint.matches(&sv) {
-            semver_tags.push(sv);
-        }
+        semver_tags.push(Version::parse(&line[1..])?);
     }
+    let semver_tags = semver_tags;
     let latest = {
-        if let Some(v) = semver_tags.into_iter().max() {
-            v
+        if let Some(v) = semver_tags.iter().filter(|v| constraint.matches(v)).max() {
+            v.clone()
         } else {
             bail!(
                 "No matching semver tag found for constraint {}.",
@@ -148,6 +155,16 @@ fn main() {
         Patch => new_version.increment_patch(),
     };
     let new_version = new_version;
+
+    if semver_tags.contains(&new_version) {
+        bail!("Attempting to release a version that already exists: {}", new_version);
+    }
+
+    let next_exists = {
+        let mut next = new_version.clone();
+        next.increment_minor();
+        semver_tags.contains(&next)
+    };
 
     update_cargo_toml_version(&new_version)?;
 
@@ -177,7 +194,7 @@ fn main() {
             .output_success()?;
     }
 
-    if release != Patch {
+    if !next_exists {
         let mut post_version = new_version.clone();
         post_version.increment_minor();
         post_version.pre = vec![Identifier::AlphaNumeric("dev".to_owned())];
@@ -193,7 +210,7 @@ fn main() {
     }
 
     if !no_push {
-        Command::new("git").args(&["push"]).output_success()?;
+        Command::new("git").arg("push").output_success()?;
 
         Command::new("git")
             .args(&["push", "origin", &format!("v{}", new_version)])
@@ -201,8 +218,11 @@ fn main() {
     }
 }
 
+type AVoid = ARes<()>;
+
 trait CommandPropagate {
     fn output_success(&mut self) -> ARes<Output>;
+    fn empty_stdout(&mut self) -> AVoid;
 }
 
 impl CommandPropagate for Command {
@@ -213,6 +233,15 @@ impl CommandPropagate for Command {
             bail!(stderr);
         }
         Ok(output)
+    }
+
+    fn empty_stdout(&mut self) -> AVoid {
+        let output = self.output_success()?;
+        if !output.stdout.is_empty() {
+            let stdout = String::from_utf8(output.stdout)?.trim().to_owned();
+            bail!(anyhow!(stdout).context("Command stdout should be empty"));
+        }
+        Ok(())
     }
 }
 

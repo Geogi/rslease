@@ -20,14 +20,14 @@ OPTIONS:
 This program performs the following actions:
 + In --repo, by default the current directory.
 + If --branch is specified, checkout the commit.
-+ Check if repo is fully clean (`git status` returns nothing).
++ Check if repo is clean and up to date: `git status`, `git rev-list`.
 + Retrieve the latest semver tag from git, possibly coerced by --for.
 + Increase the semver. Defaults to minor, use --patch or --major as needed.
 + Edit Cargo.toml, replacing `version`.
 + Run the cargo commands: `update`, `clippy -D warnings`, `fmt`.
 + Commit and create a new semver tag for the version.
 + If --install, run `cargo install`.
-+ Unless --patch was specified, perform the 3 following steps:
++ If a semver tag for the next minor does not already exist:
 ++ Edit Cargo.toml, replacing `version` with the next minor with '-dev' prerelease.
 ++ Run `cargo update` again.
 ++ Commit.
