@@ -216,6 +216,8 @@ fn main() {
     }
 }
 
+type AVoid = ARes<()>;
+
 trait CommandPropagate {
     fn output_success(&mut self) -> ARes<Output>;
     fn empty_stdout(&mut self) -> AVoid;
